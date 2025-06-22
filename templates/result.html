@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Result</title>
+</head>
+<body>
+    <h1>Your item:</h1>
+    <img src="{{ img_sub }}" width="140" height="140">
+
+    <h1>Related items:</h1>
+    {% if rel[0] %}
+        {% for each in rel %}
+            <img src="{{ each }}" width="140" height="140">
+        {% endfor %}
+    {% else %}
+        No related items found.
+    {% endif %}
+</body>
+</html>
