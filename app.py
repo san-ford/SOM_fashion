@@ -65,6 +65,9 @@ def result():
             return render_template('index.html', error_message=err)
         # retrieve file submitted
         file = request.files['image']
+        if file.content_type != 'image/jpeg':
+            err = 'Please upload a jpeg image'
+            return render_template('index.html', error_message=err)
         # input validation
         if file.filename == '':
             err = 'No file selected'
@@ -72,10 +75,12 @@ def result():
 
         if file:
             # retrieve submitted image
-            image_to_map = Image.open(file.stream).convert('L')
+            image_to_map = Image.open(file.stream)
             # prepare submitted image for results view
             submitted = html_prep(np.array(image_to_map))
-            # preprocess submitted
+            # convert image to grayscale
+            image_to_map = image_to_map.convert('L')
+            # preprocess submitted image
             image_to_map = preprocess(image_to_map)
 
             # make prediction from submitted image
