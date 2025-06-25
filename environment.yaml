@@ -1,0 +1,11 @@
+name: som_fashion_env
+channels:
+  - conda-forge
+dependencies:
+  - numpy=2.3.*
+  - pandas=2.3.0
+  - Flask=3.1.1
+  - pillow=11.2.1
+  - pip=25.1.1
+  - pip:
+      - sklearn_som==1.1.0
