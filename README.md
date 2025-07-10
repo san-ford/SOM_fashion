@@ -4,7 +4,7 @@ This app allows a user to upload an image to retrieve related clothing images. T
 ## Create Virtual Environment
 Ensure you are in the "SOM_fashion" directory. To create a virtual environment for the app using conda, run the following commands
 ```bash
-conda create -n som_fashion_env
+conda env create --file environment.yml
 conda activate som_fashion_env
 ```
 
