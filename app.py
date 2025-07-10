@@ -6,6 +6,7 @@ import io
 import flask
 import pickle
 import base64
+from scipy import ndimage
 from PIL import Image
 from sklearn_som.som import SOM
 from flask import Flask, render_template, request
@@ -14,7 +15,23 @@ from flask import Flask, render_template, request
 app = Flask(__name__)
 
 
+def rename_filetype(before):
+    if before == 'image/jpeg':
+        after = "JPEG"
+    elif before == 'image/png':
+        after = "PNG"
+    else:
+        err = 'Invalid file type'
+        return render_template('index.html', error_message=err)
+    return after
+
+
 def preprocess(img):
+    # edge detection (subtract Gaussian blurred image from original)
+    img = img - ndimage.gaussian_filter(img, 3)
+    # convert back to Image object
+    img = Image.fromarray(img)
+
     # make image square
     w, h = img.size
     if w > h:
@@ -41,10 +58,10 @@ def get_prediction(img):
 
 
 # prepare image to send to html file
-def html_prep(img):
+def html_prep(img, file_type):
     img = Image.fromarray(img.astype("uint8"))
     raw_bytes = io.BytesIO()
-    img.save(raw_bytes, "JPEG")
+    img.save(raw_bytes, file_type)
     encoded_image = "data:image/png;base64," + base64.b64encode(raw_bytes.getvalue()).decode('ascii')
     return encoded_image
 
@@ -65,8 +82,10 @@ def result():
             return render_template('index.html', error_message=err)
         # retrieve file submitted
         file = request.files['image']
-        if file.content_type != 'image/jpeg':
-            err = 'Please upload a jpeg image'
+        # define allowed file types
+        allowed_file_types = ['image/jpeg', 'image/png']
+        if file.content_type not in allowed_file_types:
+            err = 'Invalid file type'
             return render_template('index.html', error_message=err)
         # input validation
         if file.filename == '':
@@ -76,8 +95,13 @@ def result():
         if file:
             # retrieve submitted image
             image_to_map = Image.open(file.stream)
+            # rename file type
+            filetype = rename_filetype(file.content_type)
+            # ensure jpeg images are RGB only
+            if filetype == "JPEG":
+                image_to_map = image_to_map.convert('RGB')
             # prepare submitted image for results view
-            submitted = html_prep(np.array(image_to_map))
+            submitted = html_prep(np.array(image_to_map), filetype)
             # convert image to grayscale
             image_to_map = image_to_map.convert('L')
             # preprocess submitted image
@@ -99,7 +123,8 @@ def result():
             related = [None]*15
             sample_index = random.sample(range(len(related_images)), min(15, len(related_images)))
             for i, n in enumerate(sample_index):
-                related[i] = html_prep(np.reshape(related_images[n], (28, 28)))
+                next_image = np.reshape(related_images[n], (28, 28))
+                related[i] = html_prep(next_image, filetype)
 
             return render_template('result.html', img_sub=submitted,
                                     rel=related)
