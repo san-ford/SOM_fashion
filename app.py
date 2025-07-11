@@ -26,9 +26,55 @@ def rename_filetype(before):
     return after
 
 
+def center_object(img):
+    # find center of mass
+    y_center, x_center = ndimage.center_of_mass(img)
+    y_center = int(y_center)
+    x_center = int(x_center)
+
+    # determine distances from center of mass to edge of image
+    y_dist_to_edge = min(y_center, len(img) - y_center)
+    x_dist_to_edge = min(x_center, len(img[0]) - x_center)
+    dist_to_edge = max(y_dist_to_edge, x_dist_to_edge)
+
+    # zero padding
+    if x_dist_to_edge > y_dist_to_edge:
+        # if overhang is on top
+        if y_center - x_dist_to_edge < 0:
+            overhang = x_dist_to_edge - y_center
+            # zero pad on top
+            img = np.append([[0] * len(img[0])] * overhang, img, axis=0)
+            # move y center after padding on top
+            y_center += overhang
+        # else overhang is on bottom
+        else:
+            overhang = x_dist_to_edge - y_dist_to_edge
+            # zero pad on bottom
+            img = np.append(img, [[0] * len(img[0])] * overhang, axis=0)
+    if y_dist_to_edge > x_dist_to_edge:
+        # if overhang is on left
+        if x_center - y_dist_to_edge < 0:
+            overhang = y_dist_to_edge - x_center
+            # zero pad on left
+            img = np.append([[0] * overhang] * len(img), img, axis=1)
+            # move x center after padding on left
+            x_center += overhang
+        # else overhang is on right
+        else:
+            overhang = y_dist_to_edge - x_dist_to_edge
+            # zero pad on right
+            img = np.append(img, [[0] * overhang] * len(img), axis=1)
+
+    # crop image as square
+    img = img[y_center - dist_to_edge:y_center + dist_to_edge, x_center - dist_to_edge:x_center + dist_to_edge]
+    return img.astype(np.uint8)
+
+
 def preprocess(img):
     # edge detection (subtract Gaussian blurred image from original)
     img = img - ndimage.gaussian_filter(img, 3)
+    # center object
+    img = center_object(img)
     # convert back to Image object
     img = Image.fromarray(img)
 
