@@ -15,17 +15,6 @@ from flask import Flask, render_template, request
 app = Flask(__name__)
 
 
-def rename_filetype(before):
-    if before == 'image/jpeg':
-        after = "JPEG"
-    elif before == 'image/png':
-        after = "PNG"
-    else:
-        err = 'Invalid file type'
-        return render_template('index.html', error_message=err)
-    return after
-
-
 def center_object(img):
     # find center of mass
     y_center, x_center = ndimage.center_of_mass(img)
@@ -104,10 +93,10 @@ def get_prediction(img):
 
 
 # prepare image to send to html file
-def html_prep(img, file_type):
+def html_prep(img):
     img = Image.fromarray(img.astype("uint8"))
     raw_bytes = io.BytesIO()
-    img.save(raw_bytes, file_type)
+    img.save(raw_bytes, 'PNG')
     encoded_image = "data:image/png;base64," + base64.b64encode(raw_bytes.getvalue()).decode('ascii')
     return encoded_image
 
@@ -129,7 +118,7 @@ def result():
         # retrieve file submitted
         file = request.files['image']
         # define allowed file types
-        allowed_file_types = ['image/jpeg', 'image/png']
+        allowed_file_types = ['image/jpeg', 'image/png', 'image/bmp', 'image/tiff']
         if file.content_type not in allowed_file_types:
             err = 'Invalid file type'
             return render_template('index.html', error_message=err)
@@ -141,13 +130,8 @@ def result():
         if file:
             # retrieve submitted image
             image_to_map = Image.open(file.stream)
-            # rename file type
-            filetype = rename_filetype(file.content_type)
-            # ensure jpeg images are RGB only
-            if filetype == "JPEG":
-                image_to_map = image_to_map.convert('RGB')
             # prepare submitted image for results view
-            submitted = html_prep(np.array(image_to_map), filetype)
+            submitted = html_prep(np.array(image_to_map))
             # convert image to grayscale
             image_to_map = image_to_map.convert('L')
             # preprocess submitted image
@@ -170,7 +154,7 @@ def result():
             sample_index = random.sample(range(len(related_images)), min(15, len(related_images)))
             for i, n in enumerate(sample_index):
                 next_image = np.reshape(related_images[n], (28, 28))
-                related[i] = html_prep(next_image, filetype)
+                related[i] = html_prep(next_image)
 
             return render_template('result.html', img_sub=submitted,
                                     rel=related)
