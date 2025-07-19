@@ -93,12 +93,19 @@ def get_prediction(img):
 
 
 # prepare image to send to html file
-def html_prep(img):
+def encode_image(img):
     img = Image.fromarray(img.astype("uint8"))
     raw_bytes = io.BytesIO()
     img.save(raw_bytes, 'PNG')
     encoded_image = "data:image/png;base64," + base64.b64encode(raw_bytes.getvalue()).decode('ascii')
     return encoded_image
+
+
+def decode_image(img):
+    base64_decoded = base64.b64decode(img[21:])
+    decoded_image = Image.open(io.BytesIO(base64_decoded))
+    decoded_image = np.array(decoded_image)
+    return decoded_image
 
 
 # to tell flask what url should trigger the function index()
@@ -111,53 +118,89 @@ def index():
 @app.route('/result', methods=['POST'])
 def result():
     if request.method == 'POST':
-        # input validation
-        if 'image' not in request.files:
-            err = 'No file attached in request'
-            return render_template('index.html', error_message=err)
-        # retrieve file submitted
-        file = request.files['image']
-        # define allowed file types
-        allowed_file_types = ['image/jpeg', 'image/png', 'image/bmp', 'image/tiff']
-        if file.content_type not in allowed_file_types:
-            err = 'Invalid file type'
-            return render_template('index.html', error_message=err)
-        # input validation
-        if file.filename == '':
-            err = 'No file selected'
-            return render_template('index.html', error_message=err)
+        # if image chosen from related images
+        if request.form:
+            # define submitted image as chosen image
+            submitted = request.form['image']
+            # decode chosen image
+            image_to_map = decode_image(submitted)
+            # flatten image array
+            image_to_map = np.reshape(image_to_map, 784)
+            # double array to meet prediction requirements
+            image_to_map = np.concatenate(([image_to_map], [image_to_map]))
 
-        if file:
+        # if image uploaded
+        elif request.files:
+            # input validation
+            if 'image' not in request.files:
+                err = 'No file attached in request'
+                return render_template('index.html', error_message=err)
+            # retrieve file submitted
+            file = request.files['image']
+            # define allowed file types
+            allowed_file_types = ['image/jpeg', 'image/png', 'image/bmp', 'image/tiff']
+            if file.content_type not in allowed_file_types:
+                err = 'Invalid file type'
+                return render_template('index.html', error_message=err)
+            # input validation
+            if file.filename == '' or not file:
+                err = 'No file selected'
+                return render_template('index.html', error_message=err)
+
             # retrieve submitted image
             image_to_map = Image.open(file.stream)
             # prepare submitted image for results view
-            submitted = html_prep(np.array(image_to_map))
+            submitted = encode_image(np.array(image_to_map))
             # convert image to grayscale
             image_to_map = image_to_map.convert('L')
             # preprocess submitted image
             image_to_map = preprocess(image_to_map)
+        # if other type of post
+        else:
+            err = 'Invalid operation'
+            return render_template('index.html', error_message=err)
 
-            # make prediction from submitted image
-            node = get_prediction(image_to_map)
+        # make prediction from submitted image
+        node = get_prediction(image_to_map)
 
-            # retrieve images and their assigned nodes
-            train = pd.read_csv("train.csv")
-            train = np.array(train)
-            train_nodes = pd.read_csv("fashion_prediction.csv")
-            train_nodes = np.array(np.reshape(train_nodes, len(train_nodes)))
+        # retrieve images and their assigned nodes
+        train = pd.read_csv("train.csv")
+        train = np.array(train)
+        train_nodes = pd.read_csv("fashion_prediction.csv")
+        train_nodes = np.array(np.reshape(train_nodes, len(train_nodes)))
 
-            # find images related to submitted image
-            related_images = train[train_nodes == node]
+        # find images related to submitted image
+        related_images = train[train_nodes == node]
+        # find images from neighboring nodes
+        neighbor_nodes = []
+        if node > 10:
+            neighbor_nodes.append(node - 10)
+        if node < 91:
+            neighbor_nodes.append(node + 10)
+        if node % 10 != 1:
+            neighbor_nodes.append(node - 1)
+        if node % 10:
+            neighbor_nodes.append(node + 1)
+        neighbor_nodes = np.array(neighbor_nodes)
+        neighbor_images = train[train_nodes == neighbor_nodes.any()]
 
-            # retrieved related images and prepare for results view
-            related = [None]*15
-            sample_index = random.sample(range(len(related_images)), min(15, len(related_images)))
-            for i, n in enumerate(sample_index):
-                next_image = np.reshape(related_images[n], (28, 28))
-                related[i] = html_prep(next_image)
+        # retrieve related images and prepare for results view
+        related = [None]*10
+        # retrieve at most 7 from predicted node
+        node_sample_size = min(7, len(related_images))
+        sample_index = random.sample(range(len(related_images)), node_sample_size)
+        for i, n in enumerate(sample_index):
+            next_image = np.reshape(related_images[n], (28, 28))
+            related[i] = encode_image(next_image)
+        # retrieve at most 10 total images from neighboring nodes
+        neighbor_sample_size = min(10 - node_sample_size, len(neighbor_images))
+        sample_index = random.sample(range(len(neighbor_images)), neighbor_sample_size)
+        for i, n in enumerate(sample_index):
+            next_image = np.reshape(neighbor_images[n], (28, 28))
+            related[i + node_sample_size] = encode_image(next_image)
 
-            return render_template('result.html', img_sub=submitted,
-                                    rel=related)
+        return render_template('result.html', img_sub=submitted,
+                                rel=related)
     else:
         return render_template('index.html')
 

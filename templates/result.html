@@ -10,8 +10,16 @@
 
     <h1>Related items:</h1>
     {% if rel[0] %}
+        Click on any item to browse its related items.
         {% for each in rel %}
-            <img src="{{ each }}" width="140" height="140">
+            {% if each %}
+                <form action="/result" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="image" src="{{ each }}" width="140" height="140" value="{{ each }}">
+                    <button type="submit">
+                        <img src="{{ each }}" width="140" height="140">
+                    </button>
+                </form>
+            {% endif %}
         {% endfor %}
     {% else %}
         No related items found.
