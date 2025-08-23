@@ -173,16 +173,17 @@ def result():
         related_images = train[train_nodes == node]
         # find images from neighboring nodes
         neighbor_nodes = []
-        if node > 10:
+        if node >= 10:
             neighbor_nodes.append(node - 10)
-        if node < 91:
+        if node < 90:
             neighbor_nodes.append(node + 10)
-        if node % 10 != 1:
-            neighbor_nodes.append(node - 1)
-        if node % 10:
+        if node % 10 != 9:
             neighbor_nodes.append(node + 1)
-        neighbor_nodes = np.array(neighbor_nodes)
-        neighbor_images = train[train_nodes == neighbor_nodes.any()]
+        if node % 10 != 0:
+            neighbor_nodes.append(node - 1)
+        neighbor_images = train[train_nodes == neighbor_nodes[0]]
+        for i in range(1, len(neighbor_nodes)):
+            neighbor_images = np.concatenate((neighbor_images, train[train_nodes == neighbor_nodes[i]]))
 
         # retrieve related images and prepare for results view
         related = [None]*10

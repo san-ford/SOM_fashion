@@ -3,27 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <title>Result</title>
+    <style>
+    .grid-container {
+      display: grid;
+      grid-template-columns: auto auto auto auto auto;
+      align-content: center;
+    }
+    </style>
 </head>
 <body>
     <h1>Your item:</h1>
     <img src="{{ img_sub }}" width="140">
 
     <h1>Related items:</h1>
+    <div class="grid-container">
     {% if rel[0] %}
-        Click on any item to browse its related items.
         {% for each in rel %}
             {% if each %}
+                <div class="grid-item">
                 <form action="/result" method="POST" enctype="multipart/form-data">
+                    <img src="{{ each }}" width="140">
                     <input type="hidden" name="image" src="{{ each }}" width="140" height="140" value="{{ each }}">
-                    <button type="submit">
-                        <img src="{{ each }}" width="140" height="140">
-                    </button>
+                    <br>
+                    <input type="submit" value="Search with this image">
+                    <p>
                 </form>
+                </div>
             {% endif %}
         {% endfor %}
     {% else %}
         No related items found.
     {% endif %}
+    </div>
 
     <p>
     <li><a href="http://127.0.0.1:5000/">Return to index page</a></li>
